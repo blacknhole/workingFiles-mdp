@@ -47,6 +47,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *tFname == "" {
+		*tFname = os.Getenv("TEMPLATE_NAME")
+	}
+
 	if err := run(*filename, *tFname, os.Stdout, *skipPreview); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
