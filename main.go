@@ -22,6 +22,9 @@ const defaultTemplate = `<!DOCTYPE html>
     <title>{{ .Title }}</title>
   </head>
   <body>
+    <p>{{ .File }} is being previewed...</p>
+    <hr>
+    <br>
 {{ .Body }}
   </body>
 </html>
@@ -29,6 +32,7 @@ const defaultTemplate = `<!DOCTYPE html>
 
 type content struct {
 	Title string
+	File  string
 	Body  template.HTML
 }
 
@@ -55,7 +59,7 @@ func run(filename, tFname string, out io.Writer, skipPreview bool) error {
 		return err
 	}
 
-	htmlData, err := parseContent(input, tFname)
+	htmlData, err := parseContent(input, filename, tFname)
 	if err != nil {
 		return err
 	}
@@ -83,7 +87,7 @@ func run(filename, tFname string, out io.Writer, skipPreview bool) error {
 	return preview(outName)
 }
 
-func parseContent(input []byte, tFname string) ([]byte, error) {
+func parseContent(input []byte, filename, tFname string) ([]byte, error) {
 	output := blackfriday.Run(input)
 	body := bluemonday.UGCPolicy().SanitizeBytes(output)
 
@@ -101,6 +105,7 @@ func parseContent(input []byte, tFname string) ([]byte, error) {
 
 	c := content{
 		Title: "Markdown Preview Tool",
+		File:  filename,
 		Body:  template.HTML(body),
 	}
 
