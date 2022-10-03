@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -22,9 +23,7 @@ const defaultTemplate = `<!DOCTYPE html>
     <title>{{ .Title }}</title>
   </head>
   <body>
-    <p>{{ .File }} is being previewed...</p>
-    <hr>
-    <br>
+{{ .File }}
 {{ .Body }}
   </body>
 </html>
@@ -32,7 +31,7 @@ const defaultTemplate = `<!DOCTYPE html>
 
 type content struct {
 	Title string
-	File  string
+	File  template.HTML
 	Body  template.HTML
 }
 
@@ -42,25 +41,32 @@ func main() {
 	tFname := flag.String("t", "", "Alternate template name")
 	flag.Parse()
 
-	if *filename == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
 	if *tFname == "" {
 		*tFname = os.Getenv("TEMPLATE_NAME")
 	}
 
-	if err := run(*filename, *tFname, os.Stdout, *skipPreview); err != nil {
+	if err := run(os.Stdin, *filename, *tFname, os.Stdout, *skipPreview); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(filename, tFname string, out io.Writer, skipPreview bool) error {
-	input, err := os.ReadFile(filename)
-	if err != nil {
-		return err
+func run(r io.Reader, filename, tFname string, out io.Writer, skipPreview bool) error {
+	input := []byte{}
+	if filename != "" {
+		var err error
+		input, err = os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+	} else {
+		s := bufio.NewScanner(r)
+		for s.Scan() {
+			input = append(input, []byte(s.Text()+"\n")...)
+		}
+		if s.Err() != nil {
+			return s.Err()
+		}
 	}
 
 	htmlData, err := parseContent(input, filename, tFname)
@@ -107,9 +113,16 @@ func parseContent(input []byte, filename, tFname string) ([]byte, error) {
 		}
 	}
 
+	if filename != "" {
+		filename = `<p>The file <b>` + filename +
+			`</b> is being previewed...</p>
+<hr>
+<br>
+`
+	}
 	c := content{
 		Title: "Markdown Preview Tool",
-		File:  filename,
+		File:  template.HTML(filename),
 		Body:  template.HTML(body),
 	}
 
